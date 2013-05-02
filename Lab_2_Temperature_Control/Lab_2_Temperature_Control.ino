@@ -22,38 +22,13 @@ Mark Bramwell, July 2010
 Modified by Group 06, April 2013
 
 USER MANUAL
-The device begins with reading in minutes and seconds for the timer.
-1. To set minutes, increment and decrement the value using UP and DOWN.
-2. When done, press SELECT to go to seconds selection.
-3. UP and DOWN to select seconds
-4. Press SELECT again to start timer.
-5. The RIGHT button toggles the timer on/off
-6. When time is 00:00, the world commences to burn.
+The device begins with reading in the desired temperature.
+1. To set temperature, use the UP and DOWN arrows.
+2. When done, press SELECT to go to operation.
 ******************************************************/
 // select the pins used on the LCD panel
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
-// define some values used by the panel and buttons
-byte flame1[8] = {
-        B00100,
-        B01100,
-        B01010,
-        B01010,
-        B10011,
-        B11011,
-        B11111,
-        B01110
-};
 
-byte flame2[8] = {
-        B00100,
-        B00110,
-        B01110,
-        B01010,
-        B11001,
-        B11001,
-        B11111,
-        B01110
-};
 // Variables
 int tempPin = 1;    // select the input pin for the temperature sensor
 int buttonPin = 0;
@@ -70,11 +45,13 @@ int cur_but = btnNONE;
 boolean running = 1; //should we be pausing?
 
 int t_wait;
-int select = 1;
+
+int select = 0;
 /*
 0 = temperature selection;
 1 = running the controller;
 */
+
 // read the buttons
 int read_LCD_buttons()
 {  
@@ -95,7 +72,7 @@ int debounce(int last)
   if (last != current) // If a change happened
   {
     delay(10); // wait for bounce to settle
-    current = analogRead(buttonPin); 
+    current = analogRead(buttonPin);
   }
   return current;
 }
@@ -132,9 +109,9 @@ int read_temp(int set)
   if (tempVal > set && tempVal < 800)  return aboveSP;
   if (tempVal >= 800)               return overheat;
 }
-void temp_control(int setp)
+void temp_control(int set)
 {
-    read_temp_val = read_temp(setp);
+    read_temp_val = read_temp(set);
     switch (read_temp_val){ // is the temperature below or above the set point?
       case belowSP:  // case for when temperature is below the set point
       {
@@ -160,20 +137,29 @@ void temp_control(int setp)
 void setup()
 {
   lcd.begin(16, 2); // start the library
+  pinMode(heaterPin, OUTPUT);
   Serial.begin(9600);
-  lcd.createChar(1, flame1);
-  lcd.createChar(2, flame2);
 }
 
-void message(int temp, int setpo)
+void message(int temp, int setpoint)
 {
   lcd.setCursor(0,0); // set cursor to first column, first row
   lcd.print("Current T:");
   lcd.print(temp);
   lcd.setCursor(0,1); // set cursor to first column, second row
   lcd.print("Setpoint T:");
-  lcd.print(setpo);
+  lcd.print(setpoint);
 }
+
+void sendPlotData(String seriesName, float data)
+{
+  Serial.print("{");
+  Serial.print(seriesName);
+  Serial.print(",T,");
+  Serial.print(data);
+  Serial.println("}");
+}
+
 int increment_var(int out, int l_lim, int r_lim)
 {
       lcd_key = read_LCD_buttons();
@@ -220,6 +206,8 @@ void loop()
       tempVal = analogRead(tempPin);
       temp_control(setpoint);
       message(tempVal, setpoint);
+      sendPlotData("Temperature", tempVal);
+      //sendPlotData("Error",heatPID.GetError());
       break;
     }
   }
